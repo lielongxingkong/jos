@@ -12,7 +12,7 @@
 #include <kern/kdebug.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
-#define FUNCNAME_LEN	80	// enough for one VGA text line
+#define FUNCNAME_LEN	100	// function name for display
 
 
 struct Command {
