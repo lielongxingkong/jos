@@ -98,8 +98,9 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	result = nextfree;
+	nextfree += n;
+	return result;
 }
 
 // Set up a two-level page table:
