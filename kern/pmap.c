@@ -249,8 +249,21 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
-	size_t i;
+	size_t i, hole_begin, bootseg_end, pgdir_end, pgtbl_end;
+	extern char end[];
+	hole_begin = IOPHYSMEM;
+	bootseg_end = PADDR((ROUNDUP((char *) end, PGSIZE))) ;
+	pgdir_end = bootseg_end + PGSIZE;
+	pgtbl_end = pgdir_end + npages * sizeof(struct PageInfo);
+	pgtbl_end = ROUNDUP(pgtbl_end, PGSIZE);
+
 	for (i = 0; i < npages; i++) {
+		if (i == 0)
+			continue;
+		if (i >= hole_begin / PGSIZE && i < pgtbl_end / PGSIZE) 
+			continue;
+		if (i == NPTENTRIES)
+			break;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
