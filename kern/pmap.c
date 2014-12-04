@@ -262,8 +262,6 @@ page_init(void)
 			continue;
 		if (i >= hole_begin / PGSIZE && i < pgtbl_end / PGSIZE) 
 			continue;
-		if (i == NPTENTRIES)
-			break;
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
