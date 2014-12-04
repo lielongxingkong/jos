@@ -284,9 +284,9 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
+	struct PageInfo *result;
 	if (!page_free_list)
 		return NULL;
-	struct PageInfo *result;
 	result = page_free_list;
 	page_free_list = page_free_list->pp_link;
 	result->pp_link = NULL;
