@@ -348,7 +348,18 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *pgtable, pde;
+	struct PageInfo *page;
+	if (!(pgdir[PDX(va)] & PTE_P)) {
+		if (!create || (page = page_alloc(ALLOC_ZERO)) == NULL)
+			return NULL;
+		else {
+			++page->pp_ref;
+			pgdir[PDX(va)] = PTE_ADDR(page2pa(page)) | PTE_P | PTE_W | PTE_U;
+		}
+	}
+	pgtable = (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)]));
+	return &pgtable[PTX(va)];
 }
 
 //
