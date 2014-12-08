@@ -380,8 +380,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	pte_t *pte;
 	size_t i;
 	for (i = 0; i < ROUNDDOWN(size, PGSIZE); i += PGSIZE) {
-		pte = pgdir_walk(pgdir, (void *)(va + i), 0);
-		*pte = PGNUM(pa) | perm | PTE_P;
+		pte = pgdir_walk(pgdir, (void *)va + i, 1);
+		*pte = PTE_ADDR(pa + i) | perm | PTE_P;
 	}
 }
 
