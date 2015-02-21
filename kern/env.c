@@ -390,6 +390,12 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *new;
+	if (env_alloc(&new, 0) < 0)
+		panic("failed to alloc env in env_create");
+
+	load_icode(new, binary);
+	new->env_type = type;
 }
 
 //
