@@ -70,10 +70,12 @@ trap_init(void)
 	extern char th_gpflt[];
 	extern char th_pgflt[];
 	extern char th_brkpt[];
+	extern char th_syscall[];
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, th_divide, 0);
 	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
 	SETGATE(idt[T_PGFLT], 0, GD_KT, th_pgflt, 0);
 	SETGATE(idt[T_BRKPT], 0, GD_KT, th_brkpt, 3);
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, th_syscall, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -152,6 +154,18 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+
+	if (tf->tf_trapno == T_SYSCALL){
+		uint32_t syscallno, a1, a2, a3, a4, a5;
+		syscallno = tf->tf_regs.reg_eax,
+		a1 = tf->tf_regs.reg_edx;
+		a2 = tf->tf_regs.reg_ecx;
+		a3 = tf->tf_regs.reg_ebx;
+		a4 = tf->tf_regs.reg_edi;
+		a5 = tf->tf_regs.reg_esi;
+		tf->tf_regs.reg_eax = syscall(syscallno, a1, a2, a3, a4, a5);
+		return;
+	}
 
 	switch(tf->tf_trapno) {
 		case T_DIVIDE:
