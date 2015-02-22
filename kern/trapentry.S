@@ -47,9 +47,22 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 
+TRAPHANDLER_NOEC(th_divide, T_DIVIDE)
+TRAPHANDLER(th_gpflt, T_GPFLT)
 
 
 /*
  * Lab 3: Your code here for _alltraps
  */
+
+_alltraps:
+	pushl	%ds
+	pushl	%es
+	pushal
+	movl	$GD_KD, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	pushl	%esp
+	call	trap
+	addl	$4, %esp
 

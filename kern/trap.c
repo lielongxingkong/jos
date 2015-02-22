@@ -66,6 +66,11 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
+	extern char th_divide[];
+	extern char th_gpflt[];
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, th_divide, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -143,6 +148,14 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+
+	switch(tf->tf_trapno) {
+		case T_DIVIDE:
+		case T_GPFLT:
+			break;
+		default:
+			panic("unknown trap in kernel");
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
