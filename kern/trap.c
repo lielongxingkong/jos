@@ -68,8 +68,10 @@ trap_init(void)
 
 	extern char th_divide[];
 	extern char th_gpflt[];
+	extern char th_pgflt[];
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, th_divide, 0);
 	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, th_pgflt, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -152,6 +154,9 @@ trap_dispatch(struct Trapframe *tf)
 	switch(tf->tf_trapno) {
 		case T_DIVIDE:
 		case T_GPFLT:
+			break;
+		case T_PGFLT:
+			page_fault_handler(tf);
 			break;
 		default:
 			panic("unknown trap in kernel");

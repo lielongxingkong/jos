@@ -49,6 +49,7 @@
 
 TRAPHANDLER_NOEC(th_divide, T_DIVIDE)
 TRAPHANDLER(th_gpflt, T_GPFLT)
+TRAPHANDLER(th_pgflt, T_PGFLT)
 
 
 /*
