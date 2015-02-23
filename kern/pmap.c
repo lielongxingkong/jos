@@ -315,6 +315,8 @@ page_init(void)
 	for (i = 0; i < npages; i++) {
 		if (i == 0)
 			continue;
+		if (i == MPENTRY_PADDR / PGSIZE)
+			continue;
 		if (i >= hole_begin / PGSIZE && i < envs_end / PGSIZE) 
 			continue;
 		pages[i].pp_ref = 0;
