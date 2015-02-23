@@ -73,6 +73,17 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
+	extern char th_divide[];
+	extern char th_gpflt[];
+	extern char th_pgflt[];
+	extern char th_brkpt[];
+	extern char th_syscall[];
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, th_divide, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, th_pgflt, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, th_brkpt, 3);
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, th_syscall, 3);
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -174,6 +185,32 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 
+	if (tf->tf_trapno == T_SYSCALL){
+		uint32_t syscallno, a1, a2, a3, a4, a5;
+		syscallno = tf->tf_regs.reg_eax,
+		a1 = tf->tf_regs.reg_edx;
+		a2 = tf->tf_regs.reg_ecx;
+		a3 = tf->tf_regs.reg_ebx;
+		a4 = tf->tf_regs.reg_edi;
+		a5 = tf->tf_regs.reg_esi;
+		tf->tf_regs.reg_eax = syscall(syscallno, a1, a2, a3, a4, a5);
+		return;
+	}
+
+	switch(tf->tf_trapno) {
+		case T_DIVIDE:
+		case T_GPFLT:
+			break;
+		case T_BRKPT:
+			monitor(tf);
+			break;
+		case T_PGFLT:
+			page_fault_handler(tf);
+			break;
+		default:
+			panic("unknown trap in kernel");
+	}
+
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
@@ -186,6 +223,7 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -268,6 +306,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if ((tf->tf_cs & 3) == 0) {
+		panic("page fault in kernel mode");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
