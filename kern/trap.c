@@ -299,7 +299,9 @@ trap(struct Trapframe *tf)
 void
 page_fault_handler(struct Trapframe *tf)
 {
-	uint32_t fault_va;
+	uint32_t fault_va, utf_size;
+	uintptr_t stacktop;
+	struct UTrapframe* ufrm;
 
 	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
@@ -343,6 +345,34 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall != NULL) {
+		utf_size = sizeof(struct UTrapframe);
+
+		//if enter from user-space: esp in trapframe has been in UXSTACK
+		//add a 32-bit empty word
+		if (tf->tf_esp >= UXSTACKTOP-PGSIZE && tf->tf_esp < UXSTACKTOP) {
+			user_mem_assert(curenv, (void *)tf->tf_esp - (utf_size + 4), utf_size + 4, PTE_P|PTE_U);
+			stacktop = tf->tf_esp - 4;
+		} else {
+			user_mem_assert(curenv, (void *)UXSTACKTOP - utf_size, utf_size, PTE_P|PTE_U);
+			stacktop = UXSTACKTOP;
+		}
+
+		//set a Utrapframe on UXSTACK
+		stacktop -= utf_size;
+		ufrm = (struct UTrapframe *)stacktop;
+		ufrm->utf_fault_va = fault_va;
+		ufrm->utf_err = tf->tf_err;
+		//save regs which to be modified to Utrapframe
+		ufrm->utf_regs = tf->tf_regs;
+		ufrm->utf_eip = tf->tf_eip;
+		ufrm->utf_eflags = tf->tf_eflags;
+		ufrm->utf_esp = tf->tf_esp;
+
+		tf->tf_esp = stacktop;
+		tf->tf_eip = (uint32_t)curenv->env_pgfault_upcall;
+		env_run(curenv);
+	}
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
