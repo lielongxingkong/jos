@@ -84,6 +84,9 @@ trap_init(void)
 	SETGATE(idt[T_BRKPT], 0, GD_KT, th_brkpt, 3);
 	SETGATE(idt[T_SYSCALL], 1, GD_KT, th_syscall, 3);
 
+	extern char th_irq_timer[];
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, th_irq_timer, 0);
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -207,6 +210,8 @@ trap_dispatch(struct Trapframe *tf)
 		case T_PGFLT:
 			page_fault_handler(tf);
 			break;
+		case IRQ_OFFSET + IRQ_TIMER:
+			break;
 		default:
 			panic("unknown trap in kernel");
 	}
@@ -223,7 +228,10 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
-
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -254,6 +262,7 @@ trap(struct Trapframe *tf)
 	// Check that interrupts are disabled.  If this assertion
 	// fails, DO NOT be tempted to fix it by inserting a "cli" in
 	// the interrupt path.
+	write_eflags(read_eflags() & ~FL_IF);
 	assert(!(read_eflags() & FL_IF));
 
 	if ((tf->tf_cs & 3) == 3) {

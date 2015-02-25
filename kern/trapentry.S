@@ -54,6 +54,7 @@ TRAPHANDLER_NOEC(th_syscall, T_SYSCALL)
 TRAPHANDLER(th_gpflt, T_GPFLT)
 TRAPHANDLER(th_pgflt, T_PGFLT)
 
+TRAPHANDLER_NOEC(th_irq_timer, IRQ_OFFSET + IRQ_TIMER)
 
 /*
  * Lab 3: Your code here for _alltraps
