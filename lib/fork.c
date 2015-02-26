@@ -25,6 +25,8 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	if (((uvpt[(PGNUM(addr))] & PTE_COW) == 0) || ((err & FEC_WR) != FEC_WR))
+		panic("error faulting access");
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,8 +35,21 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	addr = (void *)ROUNDDOWN(addr, PGSIZE);
 
-	panic("pgfault not implemented");
+	// Map origin addr's pa to UTEMP, COW page is readonly
+	if ((r = sys_page_map(0, addr, 0, UTEMP, PTE_P|PTE_U)) < 0)
+		panic("sys_page_map: %e", r);
+
+	// Alloc new page for addr, its pa changed
+	if ((r = sys_page_alloc(0, addr, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("sys_page_alloc: %e", r);
+
+	// Copy content in origin cow page to new page
+	memmove(addr, UTEMP, PGSIZE);
+	if ((r = sys_page_unmap(0, UTEMP)) < 0)
+		panic("sys_page_unmap: %e", r);
+
 }
 
 //
@@ -51,10 +66,21 @@ pgfault(struct UTrapframe *utf)
 static int
 duppage(envid_t envid, unsigned pn)
 {
-	int r;
+	int r, flags;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	flags = uvpt[pn] & PTE_SYSCALL;
+	if (flags & PTE_W || flags & PTE_COW) {
+		// remove PTE_W for both origin and new page, COW page becomes readonly
+		flags &= ~PTE_W;
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), flags|PTE_COW)) < 0)
+			return r;
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), 0, (void *)(pn * PGSIZE), flags|PTE_COW)) < 0)
+			return r;
+	} else {
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), flags)) < 0)
+			return r;
+	}
 	return 0;
 }
 
@@ -78,7 +104,48 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	envid_t envid;
+	unsigned pdn, ptn, pn;
+	int r;
+	extern unsigned char end[];
+	extern void _pgfault_upcall(void);
+
+	set_pgfault_handler(pgfault);
+	envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork: %e", envid);
+	if (envid == 0) {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	// map our address space into the child, two-level traverse for better performance
+	for (pdn = PDX(UTEXT); pdn < PDX(USTACKTOP); pdn++) {
+		if (!(uvpd[pdn] & PTE_P))
+			continue;
+		for (ptn = 0; ptn < NPTENTRIES; ptn++) {
+			pn = PGNUM(PGADDR(pdn, ptn, 0));
+			if (!(uvpt[pn] & PTE_P))
+				continue;
+			if ((r = duppage(envid, pn)) < 0)
+				panic("duppage : %e", r);
+		}
+	}
+
+	// Also copy the stack we are currently running on.
+	if ((r = duppage(envid, PGNUM(ROUNDDOWN(&pn, PGSIZE)))) < 0)
+		panic("duppage : %e", r);
+
+	// alloc UXSTACK and set pagefault handler for the child
+	if ((r = sys_page_alloc(envid, (void*) (UXSTACKTOP - PGSIZE), PTE_P|PTE_U|PTE_W)) < 0)
+		panic("allocating UXSTACK in fork: %e", r);
+	if ((r = sys_env_set_pgfault_upcall(envid, (void *)_pgfault_upcall)) < 0)
+		panic("set_pgfault_handler in fork: %e", r);
+
+	// Start the child environment running
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+	return envid;
 }
 
 // Challenge!
