@@ -82,7 +82,7 @@ trap_init(void)
 	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
 	SETGATE(idt[T_PGFLT], 0, GD_KT, th_pgflt, 0);
 	SETGATE(idt[T_BRKPT], 0, GD_KT, th_brkpt, 3);
-	SETGATE(idt[T_SYSCALL], 1, GD_KT, th_syscall, 3);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, th_syscall, 3);
 
 	extern char th_irq_timer[];
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, th_irq_timer, 0);
