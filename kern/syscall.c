@@ -225,7 +225,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
 		return -E_INVAL;
 	if (!(perm & (PTE_U|PTE_P)) || perm & ~PTE_SYSCALL)
 		return -E_INVAL;
-	if (envid2env(srcenvid, &src_env, 1) < 0 || envid2env(dstenvid, &dst_env, 1) < 0)
+	if (envid2env(srcenvid, &src_env, 1) < 0 || envid2env(dstenvid, &dst_env, 0) < 0)
 		return -E_BAD_ENV;
 	if ((pp = page_lookup(src_env->env_pgdir, srcva, &pte)) == NULL)
 		return -E_INVAL;
