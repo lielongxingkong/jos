@@ -316,14 +316,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	int r;
 	pte_t *pte;
 	struct Env *env;
-
 	if ((uintptr_t)srcva < UTOP && (uintptr_t)srcva % PGSIZE != 0) 
 		return -E_INVAL;
 	if ((uintptr_t)srcva < UTOP && (!(perm & (PTE_U|PTE_P)) || perm & ~PTE_SYSCALL))
 		return -E_INVAL;
 	if ((uintptr_t)srcva < UTOP && page_lookup(curenv->env_pgdir, srcva, &pte) == NULL)
 		return -E_INVAL;
-	if (!(*pte & PTE_W) && (perm & PTE_W))
+	if (((uintptr_t)srcva < UTOP) && !(*pte & PTE_W) && (perm & PTE_W))
 		return -E_INVAL;
 	if (envid2env(envid, &env, 0) < 0)
 		return -E_BAD_ENV;
