@@ -13,6 +13,7 @@
 #include <kern/trap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
+#define FUNCNAME_LEN	100	// function name for display
 
 
 struct Command {
@@ -25,6 +26,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display backtrace about this command", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -60,6 +62,26 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	struct Eipdebuginfo info;
+	void** ebp, **eip;
+	int i;
+	char display_name[FUNCNAME_LEN];
+
+	cprintf("Stack backtrace:\n");
+
+	for (ebp = (void **)read_ebp(); ebp != 0; ebp = *ebp) {
+		eip = *(ebp + 1);
+
+		cprintf("  ebp %08x  eip %08x  args ", ebp, eip);
+		for (i = 2; i < 7; i++) 
+			cprintf("%08x ", (uint32_t)*(ebp + i));
+		cprintf("\n");
+
+		if(debuginfo_eip((uintptr_t)eip, &info))
+			return -1;
+		strlcpy(display_name, info.eip_fn_name, info.eip_fn_namelen + 1);
+		cprintf("\t%s:%d: %s+%d\n", info.eip_file, info.eip_line, display_name, (uint32_t)eip - info.eip_fn_addr);
+	}
 	return 0;
 }
 

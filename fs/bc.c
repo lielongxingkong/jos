@@ -48,6 +48,11 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
+	addr = (void *)ROUNDDOWN(addr, PGSIZE);
+	if ((r = sys_page_alloc(0, addr, PTE_P|PTE_U|PTE_W)) < 0)
+		panic("allocating at %x in bc_pgfault: %e", addr, r);
+	if ((r = ide_read(blockno * BLKSECTS, addr, PGSIZE / SECTSIZE)) < 0)
+		panic("read disk in bc_pgfault: %e", r);
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
@@ -56,7 +61,8 @@ bc_pgfault(struct UTrapframe *utf)
 
 	// Check that the block we read was allocated. (exercise for
 	// the reader: why do we do this *after* reading the block
-	// in?)
+	// in? A: Because only first bitmap page load to mem in fs_init, access
+	// bitmap may raise a page fault. Check here followed bitmap page fault fixed.)
 	if (bitmap && block_is_free(blockno))
 		panic("reading free block %08x\n", blockno);
 }
@@ -72,12 +78,23 @@ void
 flush_block(void *addr)
 {
 	uint32_t blockno = ((uint32_t)addr - DISKMAP) / BLKSIZE;
+	int r;
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
 
 	// LAB 5: Your code here.
-	panic("flush_block not implemented");
+	// Sanity check the block number.
+	if (super && blockno >= super->s_nblocks)
+		panic("writing non-existent block %08x\n", blockno);
+
+	addr = (void *)ROUNDDOWN(addr, PGSIZE);
+	if (va_is_mapped(addr) && va_is_dirty(addr)) {
+		if ((r = ide_write(blockno * BLKSECTS, addr, PGSIZE / SECTSIZE)) < 0)
+			panic("write disk in bc_pgfault: %e", r);
+		if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
+			panic("in bc_pgfault, sys_page_map: %e", r);
+	}
 }
 
 // Test that the block cache works, by smashing the superblock and
