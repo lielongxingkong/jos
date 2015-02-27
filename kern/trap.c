@@ -85,7 +85,11 @@ trap_init(void)
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, th_syscall, 3);
 
 	extern char th_irq_timer[];
+	extern char th_irq_kbd[];
+	extern char th_irq_serial[];
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, th_irq_timer, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, th_irq_kbd, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, th_irq_serial, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -211,6 +215,8 @@ trap_dispatch(struct Trapframe *tf)
 			page_fault_handler(tf);
 			break;
 		case IRQ_OFFSET + IRQ_TIMER:
+		case IRQ_OFFSET + IRQ_KBD:
+		case IRQ_OFFSET + IRQ_SERIAL:
 			break;
 		default:
 			panic("unknown trap in kernel");
@@ -235,6 +241,15 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
+		kbd_intr();
+		return;
+	}
+
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SERIAL) {
+		serial_intr();
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
