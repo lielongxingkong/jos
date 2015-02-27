@@ -70,7 +70,10 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	flags = uvpt[pn] & PTE_SYSCALL;
-	if (flags & PTE_W || flags & PTE_COW) {
+	if (flags & PTE_SHARE) {
+		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), flags)) < 0)
+			return r;
+	} else if (flags & PTE_W || flags & PTE_COW) {
 		// remove PTE_W for both origin and new page, COW page becomes readonly
 		flags &= ~PTE_W;
 		if ((r = sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), flags|PTE_COW)) < 0)
