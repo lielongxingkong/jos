@@ -31,7 +31,7 @@ struct pci_driver pci_attach_class[] = {
 // pci_attach_vendor matches the vendor ID and device ID of a PCI device. key1
 // and key2 should be the vendor ID and device ID respectively
 struct pci_driver pci_attach_vendor[] = {
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_E1000_82540EM, (int (*)(struct pci_func *))&pci_func_enable },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_E1000_82540EM, &pci_e1000_attach },
 	{ 0, 0, 0 },
 };
 
@@ -52,14 +52,14 @@ pci_conf1_set_addr(uint32_t bus,
 	outl(pci_conf1_addr_ioport, v);
 }
 
-static uint32_t
+uint32_t
 pci_conf_read(struct pci_func *f, uint32_t off)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
 	return inl(pci_conf1_data_ioport);
 }
 
-static void
+void
 pci_conf_write(struct pci_func *f, uint32_t off, uint32_t v)
 {
 	pci_conf1_set_addr(f->bus->busno, f->dev, f->func, off);
