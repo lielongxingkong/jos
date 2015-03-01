@@ -90,7 +90,7 @@ struct tx_desc
 	uint16_t special;
 };
 
-int pci_e1000_attach(struct pci_func *f);
 void e1000_init_transmit(void);
+int e1000_tx_pkt(void* data, int len);
 
 #endif	// JOS_KERN_E1000_H

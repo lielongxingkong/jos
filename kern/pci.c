@@ -15,6 +15,7 @@ static uint32_t pci_conf1_data_ioport = 0x0cfc;
 
 // Forward declarations
 static int pci_bridge_attach(struct pci_func *pcif);
+extern int pci_e1000_attach(struct pci_func *f);
 
 // PCI driver table
 struct pci_driver {
