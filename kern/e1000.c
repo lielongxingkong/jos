@@ -23,6 +23,25 @@ static void e1000_cfg_set(uint32_t off, uint32_t data) {
 	e1000_va[off >> 2] = data;
 }
 
+static int bit_isset(uint32_t field, uint32_t off) {
+	return ((field & off) != 0);
+}
+
+static int tx_desc_cmd_isset(volatile struct tx_desc* desc, uint32_t off) {
+	return bit_isset(*((volatile uint32_t *)desc + 2), off);
+}
+
+static void tx_desc_cmd_set(volatile struct tx_desc* desc, uint32_t off) {
+	volatile uint32_t *cmd_ptr = (volatile uint32_t *)desc + 2;
+	*cmd_ptr = *cmd_ptr | off;
+}
+
+static void tx_desc_cmd_clr(volatile struct tx_desc* desc, uint32_t off) {
+	volatile uint32_t *cmd_ptr = (volatile uint32_t *)desc + 2;
+	*cmd_ptr = *cmd_ptr & ~off;
+}
+
+
 void e1000_init_transmit(void) {
 	memset(tx_ring, 0, sizeof(struct tx_desc) * TX_RING_SIZE);
 	e1000_cfg_set(E1000_TDBAL, PADDR(&tx_ring[0]));
@@ -32,6 +51,27 @@ void e1000_init_transmit(void) {
 	e1000_cfg_set(E1000_TDT, 0);
 	e1000_cfg_set(E1000_TCTL, E1000_TCTL_EN | E1000_TCTL_PSP| 0x40 << 12);
 	e1000_cfg_set(E1000_TIPG, 0x0060080a);
+}
+
+int e1000_tx_pkt(void* data, int len) {
+	int tail;
+	volatile struct tx_desc *desc;
+
+	tail = e1000_cfg_get(E1000_TDT);
+	if (tail >= TX_RING_SIZE || tail < 0)
+		panic("wrong tx ring range");
+	desc = tx_ring + tail;
+
+	// check DD bit in status field, drop packet if not set
+	if (tx_desc_cmd_isset(desc, E1000_TXD_CMD_RS) && (desc->status & E1000_TXD_STAT_DD) == 0)
+		return -E_PKT_DROPPED;
+	desc->addr = PADDR(data);
+	desc->length = len;
+	tx_desc_cmd_clr(desc, E1000_TXD_CMD_DEXT);
+	tx_desc_cmd_set(desc, E1000_TXD_CMD_RS);
+	tx_desc_cmd_set(desc, E1000_TXD_CMD_EOP);
+	e1000_cfg_set(E1000_TDT, (tail + 1) % TX_RING_SIZE);
+	return 0;
 }
 
 int pci_e1000_attach(struct pci_func *f)

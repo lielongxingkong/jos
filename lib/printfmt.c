@@ -28,6 +28,7 @@ static const char * const error_string[MAXERROR] =
 	[E_FAULT]	= "segmentation fault",
 	[E_IPC_NOT_RECV]= "env is not recving",
 	[E_EOF]		= "unexpected end of file",
+	[E_PKT_DROPPED]	= "packet dropped",
 	[E_NO_DISK]	= "no free space on disk",
 	[E_MAX_OPEN]	= "too many files are open",
 	[E_NOT_FOUND]	= "file or block not found",

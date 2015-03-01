@@ -17,6 +17,8 @@ enum {
 	E_IPC_NOT_RECV	,	// Attempt to send to env that is not recving
 	E_EOF		,	// Unexpected end of file
 
+	E_PKT_DROPPED	,	// packet dropped
+
 	// File system error codes -- only seen in user-level
 	E_NO_DISK	,	// No free space left on disk
 	E_MAX_OPEN	,	// Too many files are open
