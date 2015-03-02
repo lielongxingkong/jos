@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -391,6 +392,26 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+// Network syscalls
+
+// Transmit packet
+// return 0 on success.
+// Return < 0 on error.  Errors are:
+//	-E_INVAL if length of packet larger than buffer size
+//	-E_PKT_DROPPED if driver drop packet
+static int
+sys_transmit(void *va, size_t len) {
+
+	user_mem_assert(curenv, va, len, PTE_U);
+
+	// Single transmit buffer no race because of only one env in kernel space
+	extern char tx_buf[TX_BUF_SIZE];
+	if (len > TX_BUF_SIZE)
+		return -E_INVAL;
+
+	return e1000_tx_pkt(va, len);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -432,6 +453,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_recv((void *)a1);
 	case SYS_time_msec:
 		return sys_time_msec();
+	case SYS_transmit:
+		return sys_transmit((void *)a1, (size_t)a2);
 	default:
 		return -E_INVAL;
 	}
