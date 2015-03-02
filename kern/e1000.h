@@ -4,7 +4,7 @@
 #include <inc/types.h>
 
 #define TX_BUF_SIZE	8192
-#define RX_BUF_SIZE	8192	// related to RCTL.BSIZE
+#define RX_BUF_SIZE	8192
 
 #define PCI_DEVICE_ID_E1000_82540EM	0x100e
 #define PCI_VENDOR_ID_INTEL		0x8086
