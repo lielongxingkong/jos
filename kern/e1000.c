@@ -122,7 +122,7 @@ int pci_e1000_attach(struct pci_func *f)
 
 		e1000_va = mmio_map_region(base, size);
 		e1000_init_transmit();
-		cprintf("E1000 %02x:%02x.%d (%04x:%04x) enabled\n",
+		cprintf("PCI function %02x:%02x.%d (%04x:%04x) enabled\n",
 			f->bus->busno, f->dev, f->func,
 			PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));
 		// TODO only one e1000 supported
