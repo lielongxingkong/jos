@@ -44,6 +44,7 @@ static void tx_desc_cmd_clr(volatile struct tx_desc* desc, uint32_t off) {
 
 void e1000_init_transmit(void) {
 	memset(tx_ring, 0, sizeof(struct tx_desc) * TX_RING_SIZE);
+	memset(tx_buf, 0, TX_BUF_SIZE);
 	e1000_cfg_set(E1000_TDBAL, PADDR(&tx_ring[0]));
 	e1000_cfg_set(E1000_TDBAH, 0);
 	e1000_cfg_set(E1000_TDLEN, TX_RING_SIZE << 4);
@@ -57,6 +58,11 @@ int e1000_tx_pkt(void* data, int len) {
 	int tail;
 	volatile struct tx_desc *desc;
 
+	if (len > TX_BUF_SIZE)
+		panic("packet too large for buffer");
+
+	memcpy(tx_buf, data, len);
+
 	tail = e1000_cfg_get(E1000_TDT);
 	if (tail >= TX_RING_SIZE || tail < 0)
 		panic("wrong tx ring range");
@@ -65,7 +71,7 @@ int e1000_tx_pkt(void* data, int len) {
 	// check DD bit in status field, drop packet if not set
 	if (tx_desc_cmd_isset(desc, E1000_TXD_CMD_RS) && (desc->status & E1000_TXD_STAT_DD) == 0)
 		return -E_PKT_DROPPED;
-	desc->addr = PADDR(data);
+	desc->addr = PADDR(tx_buf);
 	desc->length = len;
 	tx_desc_cmd_clr(desc, E1000_TXD_CMD_DEXT);
 	tx_desc_cmd_set(desc, E1000_TXD_CMD_RS);

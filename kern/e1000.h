@@ -2,6 +2,9 @@
 #define JOS_KERN_E1000_H
 
 #include <inc/types.h>
+
+#define TX_BUF_SIZE	8192
+
 #define PCI_DEVICE_ID_E1000_82540EM	0x100e
 #define PCI_VENDOR_ID_INTEL		0x8086
 
@@ -89,6 +92,8 @@ struct tx_desc
 	uint8_t css;
 	uint16_t special;
 };
+
+char tx_buf[TX_BUF_SIZE];
 
 void e1000_init_transmit(void);
 int e1000_tx_pkt(void* data, int len);
