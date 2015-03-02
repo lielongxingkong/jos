@@ -7,11 +7,14 @@
 #include <kern/e1000.h>
 
 // LAB 6: Your driver code here
-#define TX_RING_SIZE 32		// should be multiple of 8 because of align
+#define TX_RING_SIZE	32		// should be multiple of 8 because of align
+#define RX_RING_SIZE	32		// should be multiple of 8 because of align
 
 volatile uint32_t *e1000_va;
 __attribute__((__aligned__(16)))
 struct tx_desc tx_ring[TX_RING_SIZE];
+__attribute__((__aligned__(16)))
+struct rx_desc rx_ring[RX_RING_SIZE];
 
 int e1000_tx_pkt(void* data, int len);
 
