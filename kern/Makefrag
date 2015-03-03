@@ -113,6 +113,9 @@ KERN_OBJFILES := $(patsubst $(OBJDIR)/lib/%, $(OBJDIR)/kern/%, $(KERN_OBJFILES))
 
 KERN_BINFILES := $(patsubst %, $(OBJDIR)/%, $(KERN_BINFILES))
 
+kern/vectors.S: kern/vectors.pl
+	perl kern/vectors.pl > kern/vectors.S
+
 # How to build kernel object files
 $(OBJDIR)/kern/%.o: kern/%.c $(OBJDIR)/.vars.KERN_CFLAGS
 	@echo + cc $<
@@ -134,10 +137,10 @@ $(OBJDIR)/kern/init.o: override KERN_CFLAGS+=$(INIT_CFLAGS)
 $(OBJDIR)/kern/init.o: $(OBJDIR)/.vars.INIT_CFLAGS
 
 # How to build the kernel itself
-$(OBJDIR)/kern/kernel: $(KERN_OBJFILES) $(KERN_BINFILES) kern/kernel.ld \
+$(OBJDIR)/kern/kernel: $(KERN_OBJFILES) $(OBJDIR)/kern/vectors.o $(KERN_BINFILES) kern/kernel.ld \
 	  $(OBJDIR)/.vars.KERN_LDFLAGS
 	@echo + ld $@
-	$(V)$(LD) -o $@ $(KERN_LDFLAGS) $(KERN_OBJFILES) $(GCC_LIB) -b binary $(KERN_BINFILES)
+	$(V)$(LD) -o $@ $(KERN_LDFLAGS) $(KERN_OBJFILES) $(OBJDIR)/kern/vectors.o $(GCC_LIB) -b binary $(KERN_BINFILES)
 	$(V)$(OBJDUMP) -S $@ > $@.asm
 	$(V)$(NM) -n $@ > $@.sym
 

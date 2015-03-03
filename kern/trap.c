@@ -30,7 +30,7 @@ struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {
 	sizeof(idt) - 1, (uint32_t) idt
 };
-
+extern uint32_t vectors[];  // in vectors.S: array of 256 entry pointers
 
 static const char *trapname(int trapno)
 {
@@ -74,23 +74,15 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
-	extern char th_divide[];
-	extern char th_gpflt[];
-	extern char th_pgflt[];
-	extern char th_brkpt[];
-	extern char th_syscall[];
-	SETGATE(idt[T_DIVIDE], 0, GD_KT, th_divide, 0);
-	SETGATE(idt[T_GPFLT], 0, GD_KT, th_gpflt, 0);
-	SETGATE(idt[T_PGFLT], 0, GD_KT, th_pgflt, 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, th_brkpt, 3);
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, th_syscall, 3);
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, vectors[T_DIVIDE], 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, vectors[T_GPFLT], 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, vectors[T_PGFLT], 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL], 3);
 
-	extern char th_irq_timer[];
-	extern char th_irq_kbd[];
-	extern char th_irq_serial[];
-	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, th_irq_timer, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, th_irq_kbd, 0);
-	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, th_irq_serial, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_TIMER], 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_KBD], 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_SERIAL], 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
