@@ -412,6 +412,28 @@ sys_transmit(void *va, size_t len) {
 	return e1000_tx_pkt(va, len);
 }
 
+// Receive packet
+// return 0 on success.
+// Return < 0 on error.  Errors are:
+//	-E_INVAL if length of buffer larger than kernel buffer size
+//	-E_INVAL if length of buffer smaller than packet size received
+static int
+sys_receive(void *dstva, size_t len) {
+	int pkt_len;
+	void *va;
+
+	user_mem_assert(curenv, dstva, len, PTE_U);
+
+//	if (len > RX_BUF_SIZE)
+//		return -E_INVAL;
+	pkt_len = e1000_rx_pkt(&va);
+//	if (pkt_len > len)
+//		return -E_INVAL;
+cprintf("@@@@ sys len %x\n",pkt_len);
+	memcpy(dstva, va, pkt_len);
+	return pkt_len;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -455,6 +477,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_time_msec();
 	case SYS_transmit:
 		return sys_transmit((void *)a1, (size_t)a2);
+	case SYS_receive:
+		return sys_receive((void *)a1, (size_t)a2);
 	default:
 		return -E_INVAL;
 	}

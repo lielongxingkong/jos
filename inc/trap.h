@@ -43,6 +43,15 @@
 
 #include <inc/types.h>
 
+struct Context {
+	/* callee-saved registers */
+	uint32_t reg_edi;
+	uint32_t reg_esi;
+	uint32_t reg_ebx;
+	uint32_t reg_ebp;
+	uint32_t reg_eip;
+} __attribute__((packed));
+
 struct PushRegs {
 	/* registers as pushed by pusha */
 	uint32_t reg_edi;

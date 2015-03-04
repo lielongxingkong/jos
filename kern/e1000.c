@@ -2,13 +2,18 @@
 #include <inc/error.h>
 #include <inc/assert.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
+#include <kern/sched.h>
+#include <kern/trap.h>
 #include <kern/pci.h>
 #include <kern/pcireg.h>
 #include <kern/e1000.h>
 
 // LAB 6: Your driver code here
 #define TX_RING_SIZE	32		// should be multiple of 8 because of align
-#define RX_RING_SIZE	32		// should be multiple of 8 because of align
+#define RX_RING_SIZE	8	// should be multiple of 8 because of align
+#define MAC_ADDR_LOW	0x12005452
+#define MAC_ADDR_HIGH 	0x80005634
 
 volatile uint32_t *e1000_va;
 __attribute__((__aligned__(16)))
@@ -17,6 +22,9 @@ __attribute__((__aligned__(16)))
 struct rx_desc rx_ring[RX_RING_SIZE];
 
 int e1000_tx_pkt(void* data, int len);
+struct Env *rx_waiting_env = NULL;
+int e1000_irq_line = 0;
+extern uint32_t vectors[];
 
 static uint32_t e1000_cfg_get(uint32_t off) {
 	return e1000_va[off >> 2];
@@ -57,6 +65,24 @@ void e1000_init_transmit(void) {
 	e1000_cfg_set(E1000_TIPG, 0x0060080a);
 }
 
+void e1000_init_receive(void) {
+	memset(tx_ring, 0, sizeof(struct rx_desc) * RX_RING_SIZE);
+	memset(rx_buf, 0, TX_BUF_SIZE);
+	e1000_cfg_set(E1000_RAH, MAC_ADDR_HIGH);
+	e1000_cfg_set(E1000_RAL, MAC_ADDR_LOW);
+	e1000_cfg_set(E1000_MTA, 0);
+	//e1000_cfg_set(E1000_IMS, E1000_IMS_LSC|E1000_IMS_RXSEQ|E1000_IMS_RXDMT0|E1000_IMS_RXO|E1000_IMS_RXT0);
+	//e1000_cfg_set(E1000_IMS, E1000_IMS_LSC|E1000_IMS_RXSEQ|E1000_IMS_RXDMT0|E1000_IMS_RXT0);
+	e1000_cfg_set(E1000_RDBAL, PADDR(&rx_ring[0]));
+	e1000_cfg_set(E1000_RDBAH, 0);
+	e1000_cfg_set(E1000_RDLEN, RX_RING_SIZE << 4);
+	e1000_cfg_set(E1000_RDH, 20);
+	e1000_cfg_set(E1000_RDT, 1);
+	e1000_cfg_set(E1000_RCTL, E1000_RCTL_EN|E1000_RCTL_SECRC);
+	e1000_cfg_set(E1000_IMS, E1000_IMS_LSC|E1000_IMS_RXSEQ|E1000_IMS_RXDMT0|E1000_IMS_TXDW|E1000_IMS_RXT0);
+}
+
+
 int e1000_tx_pkt(void* data, int len) {
 	int tail;
 	volatile struct tx_desc *desc;
@@ -71,6 +97,7 @@ int e1000_tx_pkt(void* data, int len) {
 		panic("wrong tx ring range");
 	desc = tx_ring + tail;
 
+cprintf("send ++++ tail %x len %x data %s\n", tail, len, data);
 	// check DD bit in status field, drop packet if not set
 	if (tx_desc_cmd_isset(desc, E1000_TXD_CMD_RS) && (desc->status & E1000_TXD_STAT_DD) == 0)
 		return -E_PKT_DROPPED;
@@ -81,6 +108,37 @@ int e1000_tx_pkt(void* data, int len) {
 	tx_desc_cmd_set(desc, E1000_TXD_CMD_EOP);
 	e1000_cfg_set(E1000_TDT, (tail + 1) % TX_RING_SIZE);
 	return 0;
+}
+
+static int first = 0;
+int e1000_rx_pkt(void **va) {
+	int tail, len;
+	uint64_t addr;
+	volatile struct rx_desc *desc;
+	char *data;
+int head;
+	tail = e1000_cfg_get(E1000_RDT);
+	if (tail >= RX_RING_SIZE || tail < 0)
+		panic("wrong tx ring range");
+	desc = rx_ring + tail;
+
+	// check DD bit in status field, yield if not set
+	if ((desc->status & E1000_RXD_STAT_DD) == 0) {
+		rx_waiting_env = curenv;
+		curenv->env_status = ENV_NOT_RUNNABLE;
+		env_store_context(&curenv->context);
+		sched_yield();
+	}
+	
+
+	addr = desc->addr;
+	len = desc->length;
+cprintf("++++ tail %x status %x errors %x addr %x len %x\n", tail, desc->status, desc->errors, addr ,len);
+	data = (void *)KADDR(addr);
+	memcpy(rx_buf, data, len);
+	*va = &rx_buf;
+	e1000_cfg_set(E1000_RDT, (tail + 1) % RX_RING_SIZE);
+	return len;
 }
 
 int pci_e1000_attach(struct pci_func *f)
@@ -119,12 +177,20 @@ int pci_e1000_attach(struct pci_func *f)
 			base = PCI_MAPREG_MEM_ADDR(oldv);
 		}
 
+		
 		pci_conf_write(f, bar, oldv);
 		f->reg_base[regnum] = base;
 		f->reg_size[regnum] = size;
+		e1000_irq_line = f->irq_line;
 
 		e1000_va = mmio_map_region(base, size);
 		e1000_init_transmit();
+		e1000_init_receive();
+
+		if (e1000_irq_line + IRQ_OFFSET > 255 || e1000_irq_line <= 0)
+			panic("wrong irq line of e1000");
+		//SETGATE(idt[IRQ_OFFSET + e1000_irq_line], 0, GD_KT, vectors[e1000_irq_line + IRQ_OFFSET], 0);
+
 		cprintf("PCI function %02x:%02x.%d (%04x:%04x) enabled\n",
 			f->bus->busno, f->dev, f->func,
 			PCI_VENDOR(f->dev_id), PCI_PRODUCT(f->dev_id));

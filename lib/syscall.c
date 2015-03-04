@@ -128,3 +128,9 @@ sys_transmit(void *va, size_t len)
 {
 	return syscall(SYS_transmit, 1, (uint32_t)va, len, 0, 0, 0);
 }
+
+int
+sys_receive(void *va, size_t len)
+{
+	return syscall(SYS_receive, 0, (uint32_t)va, len, 0, 0, 0);
+}

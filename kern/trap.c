@@ -32,6 +32,8 @@ struct Pseudodesc idt_pd = {
 };
 extern uint32_t vectors[];  // in vectors.S: array of 256 entry pointers
 
+extern int e1000_irq_line;
+
 static const char *trapname(int trapno)
 {
 	static const char * const excnames[] = {
@@ -74,6 +76,10 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
+	int i;
+	for (i=0;i<255;i++)
+	SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
+
 	SETGATE(idt[T_DIVIDE], 0, GD_KT, vectors[T_DIVIDE], 0);
 	SETGATE(idt[T_GPFLT], 0, GD_KT, vectors[T_GPFLT], 0);
 	SETGATE(idt[T_PGFLT], 0, GD_KT, vectors[T_PGFLT], 0);
@@ -83,6 +89,7 @@ trap_init(void)
 	SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_TIMER], 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_KBD], 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, vectors[IRQ_OFFSET + IRQ_SERIAL], 0);
+
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -195,6 +202,24 @@ trap_dispatch(struct Trapframe *tf)
 		a5 = tf->tf_regs.reg_esi;
 		tf->tf_regs.reg_eax = syscall(syscallno, a1, a2, a3, a4, a5);
 		return;
+	}
+
+
+	print_trapframe(tf);
+	if (tf->tf_trapno == 0xb || tf->tf_trapno == 30+0xb) {
+	//if (e1000_irq_line != 0 && tf->tf_trapno == IRQ_OFFSET + e1000_irq_line) {
+		extern struct Env *rx_waiting_env;
+		if (rx_waiting_env == NULL) {
+			lapic_eoi();
+			return;
+		}
+		lapic_eoi();
+      		if (curenv != NULL && curenv->env_status == ENV_RUNNING)
+			curenv->env_status = ENV_RUNNABLE;
+		curenv = rx_waiting_env;
+		curenv->env_status = ENV_RUNNING;
+		rx_waiting_env = NULL;
+		env_load_context(curenv->context);
 	}
 
 	switch(tf->tf_trapno) {

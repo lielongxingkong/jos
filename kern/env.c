@@ -517,6 +517,32 @@ env_pop_tf(struct Trapframe *tf)
 	panic("iret failed");  /* mostly to placate the compiler */
 }
 
+void
+env_load_context(struct Context *ctx)
+{
+	__asm __volatile("movl %0,%%esp\n"
+		"\tpopl %%edi\n"
+		"\tpopl %%esi\n"
+		"\tpopl %%ebp\n"
+		"\tret"
+		: : "g" (ctx) : "memory");
+	panic("ret failed");  /* mostly to placate the compiler */
+}
+
+void
+env_store_context(struct Context **ctx)
+{
+	__asm __volatile("movl %0, %%eax\n"
+		"\tpushl %%ebp\n"
+		"\tpushl %%ebx\n"
+		"\tpushl %%esi\n"
+		"\tpushl %%edi\n"
+		"\tmovl %%esp, (%%eax)\n"
+		"\tcall sched_yield"
+		: : "g" (ctx) : "memory");
+	panic("call failed");  /* mostly to placate the compiler */
+}
+
 //
 // Context switch from curenv to env e.
 // Note: if this is the first call to env_run, curenv is NULL.

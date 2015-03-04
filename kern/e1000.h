@@ -26,7 +26,10 @@
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
-#define E1000_RA       0x05400  /* Receive Address - RW Array */
+#define E1000_RAL      0x05400  /* Receive Address - RW Array */
+#define E1000_RAH      0x05404  /* Receive Address - RW Array */
+#define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
+#define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
@@ -320,5 +323,8 @@ char rx_buf[RX_BUF_SIZE];
 
 void e1000_init_transmit(void);
 int e1000_tx_pkt(void* data, int len);
+
+void e1000_init_receive(void);
+int e1000_rx_pkt(void **va);
 
 #endif	// JOS_KERN_E1000_H
